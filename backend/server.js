@@ -4,6 +4,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { History } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,7 +31,7 @@ app.post('/api/detect-pokemon', upload.single('image'), (req, res) => {
 
     console.log('File received:', req.file.path);
 
-    const pythonProcess = spawn('py', ['autoencoder_script.py', req.file.path]);
+    const pythonProcess = spawn('python3', ['autoencoder_script.py', req.file.path]);
 
     console.log('Python process spawned');
 
@@ -45,7 +46,7 @@ app.post('/api/detect-pokemon', upload.single('image'), (req, res) => {
         console.error('Python script error:', data.toString());
     });
 
-    pythonProcess.on('close', (code) => {
+    pythonProcess.on('close', async (code) => {
         console.log('Python process closed with code:', code);
         if (code !== 0) {
             return res.status(500).send('Error processing image');
@@ -53,7 +54,14 @@ app.post('/api/detect-pokemon', upload.single('image'), (req, res) => {
         try {
             const jsonResult = JSON.parse(result);
             console.log('Parsed result:', jsonResult);
-            res.json(jsonResult);
+            // Store the result in the database
+            const detection = await History.create({
+                originalImage: req.file.path,
+                detectedPokemon: jsonResult.pokemon,
+                confidence: jsonResult.confidence,
+                timestamp: new Date()
+            });
+            res.json({ ...jsonResult, id: detection.id });
         } catch (error) {
             console.error('Error parsing Python script output:', error);
             res.status(500).send('Error processing image');
@@ -61,7 +69,31 @@ app.post('/api/detect-pokemon', upload.single('image'), (req, res) => {
     });
 });
 
+app.get('/api/pokemon-image/:id', (req, res) => {
+    const id = req.params.id;
+    const imagePath = path.join(__dirname, 'Train', `pokemon (${id}).png`);
+    res.sendFile(imagePath);
+})
+
+app.post('/api/upload', upload.single('image'), (req, res) => {
+    console.log('Image uploaded:', req.file.path);
+    res.json({ message: 'Image uploaded successfully' });
+});
+
+app.get('/api/detection-history', async (req, res) => {
+    try {
+        const history = await History.findAll({
+            order: [['timestamp', 'DESC']],
+            limit: 10
+        });
+        res.json(history);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Error retrieving detection history');
+    }
+});
+
 // Start the server
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`Server is running on port ${port}`);
 });

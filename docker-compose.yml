@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - HOST=0.0.0.0
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      - POSTGRES_DB=pokemon_detector
+      - POSTGRES_USER=pwei
+      - POSTGRES_PASSWORD=postgres
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: pokemon_detector
+      POSTGRES_USER: 'pwei'
+      POSTGRES_PASSWORD: 'postgres'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

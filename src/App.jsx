@@ -5,6 +5,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [result, setResult] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0]
@@ -24,6 +25,7 @@ function App() {
 
   const handleSubmit = async () => {
     console.log('detect pokemon clicked');
+    setIsProcessing(true);
     if (!selectedFile) {
       console.log('No file selected');
       return;
@@ -47,6 +49,8 @@ function App() {
       setResult(data);
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -69,9 +73,14 @@ function App() {
       {result && (
         <div className="result">
           <h2>Result:</h2>
-          <img src={`/train/pokemon (${result.similar_image_index + 1}).png`} alt="Most similar Pokemon" />
+          <img src={`/api/pokemon-image/${result.similar_image_index + 1}`} alt="Most similar Pokemon" />
           <p className="confidence">Confidence: {(result.confidence * 100).toFixed(2)}%</p>
           <p>Detected Pokemon: {result.pokemon}</p>
+        </div>
+      )}
+      {isProcessing && (
+        <div className="processing-message">
+          <p>Performing magic...</p>
         </div>
       )}
     </div>
